@@ -1,0 +1,100 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: printmate-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-printmate}
+      POSTGRES_USER: ${DB_USERNAME:-printmate_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-printmate_user} -d ${DB_NAME:-printmate}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - printmate-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: printmate-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-printmate}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-printmate_user}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      UPLOAD_DIR: /app/uploads
+      MANAGEMENT_PORT: 8081
+      PROMETHEUS_PUBLIC_URL: ${PROMETHEUS_PUBLIC_URL:-http://localhost:9090}
+      GRAFANA_PUBLIC_URL: ${GRAFANA_PUBLIC_URL:-http://localhost:3000}
+      ADMIN_AUTO_CREATE: ${ADMIN_AUTO_CREATE:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@printmate.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      OPERATOR_AUTO_CREATE: ${OPERATOR_AUTO_CREATE:-true}
+      OPERATOR_EMAIL: ${OPERATOR_EMAIL:-operator@printmate.com}
+      OPERATOR_PASSWORD: ${OPERATOR_PASSWORD:?Set OPERATOR_PASSWORD in .env}
+    volumes:
+      - document_uploads:/app/uploads
+    networks:
+      - printmate-net
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: printmate-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks:
+      - printmate-net
+
+  grafana:
+    image: grafana/grafana:10.4.1
+    container_name: printmate-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_USERS_DEFAULT_THEME=light
+    volumes:
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - printmate-net
+
+networks:
+  printmate-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: printmate_postgres_data
+  document_uploads:
+    name: printmate_document_uploads
+  grafana_data:
+    name: printmate_grafana_data
