@@ -1,0 +1,40 @@
+server:
+  port: 8085
+
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/printmatedb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.H2Dialect
+    open-in-view: false
+
+  h2:
+    console:
+      enabled: false
+      path: /h2-console
+
+management:
+  server:
+    port: 8086
+
+printmate:
+  upload-dir: ./uploads/documents
+  currency: BDT
+  timezone: Asia/Dhaka
+
+  security:
+    admin:
+      auto-create: ${ADMIN_AUTO_CREATE:false}
+      email: ${ADMIN_EMAIL:admin@example.com}
+      password: ${ADMIN_PASSWORD:}
+
+    operator:
+      auto-create: ${OPERATOR_AUTO_CREATE:false}
+      email: ${OPERATOR_EMAIL:operator@example.com}
+      password: ${OPERATOR_PASSWORD:}

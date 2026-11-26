@@ -1,0 +1,31 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:printmatetest;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL;LOCK_TIMEOUT=10000
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    open-in-view: false
+    database-platform: org.hibernate.dialect.H2Dialect
+  sql:
+    init:
+      mode: never
+
+management:
+  server:
+    port: 0
+
+printmate:
+  upload-dir: ${java.io.tmpdir}/printmate-test-uploads
+  security:
+    admin:
+      auto-create: true
+      email: admin@printmate.com
+      password: Admin@12345
+    operator:
+      auto-create: true
+      email: operator@printmate.com
+      password: Operator@12345
